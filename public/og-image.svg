@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D1117"/>
+      <stop offset="100%" style="stop-color:#161B22"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00D4FF"/>
+      <stop offset="100%" style="stop-color:#A855F7"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00D4FF;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#A855F7;stop-opacity:0.15"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Glow effect top -->
+  <ellipse cx="600" cy="0" rx="500" ry="200" fill="#00D4FF" opacity="0.06"/>
+  <ellipse cx="900" cy="630" rx="400" ry="180" fill="#A855F7" opacity="0.06"/>
+
+  <!-- Grid lines -->
+  <g stroke="#ffffff" stroke-opacity="0.04" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="150" y1="0" x2="150" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="450" y1="0" x2="450" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="750" y1="0" x2="750" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="1050" y1="0" x2="1050" y2="630"/>
+  </g>
+
+  <!-- Logo icon -->
+  <rect x="80" y="80" width="72" height="72" rx="18" fill="url(#glow)"/>
+  <text x="116" y="133" font-family="monospace" font-weight="900" font-size="34" fill="white" text-anchor="middle">SR</text>
+
+  <!-- Brand name -->
+  <text x="172" y="114" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="48" fill="white">SQL</text>
+  <text x="300" y="114" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="48" fill="url(#glow)">Riyaz</text>
+
+  <!-- Tagline badge -->
+  <rect x="80" y="140" width="320" height="36" rx="18" fill="url(#badge)" stroke="#00D4FF" stroke-opacity="0.3" stroke-width="1"/>
+  <text x="240" y="163" font-family="Inter, Arial, sans-serif" font-size="15" fill="#00D4FF" text-anchor="middle" font-weight="600">#1 SQL Interview Prep Platform</text>
+
+  <!-- Main headline -->
+  <text x="80" y="260" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="64" fill="white">Master SQL for Your</text>
+  <text x="80" y="340" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="64" fill="url(#glow)">Dream Job</text>
+
+  <!-- Sub text -->
+  <text x="80" y="400" font-family="Inter, Arial, sans-serif" font-size="24" fill="#8B949E">Practice 250+ real SQL interview questions — Easy to Expert</text>
+
+  <!-- Stats pills -->
+  <rect x="80" y="450" width="175" height="48" rx="12" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+  <text x="167" y="479" font-family="Inter, Arial, sans-serif" font-size="14" fill="#8B949E" text-anchor="middle">📚 250+ Questions</text>
+
+  <rect x="268" y="450" width="175" height="48" rx="12" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+  <text x="355" y="479" font-family="Inter, Arial, sans-serif" font-size="14" fill="#8B949E" text-anchor="middle">⚡ Live SQL Playground</text>
+
+  <rect x="456" y="450" width="175" height="48" rx="12" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+  <text x="543" y="479" font-family="Inter, Arial, sans-serif" font-size="14" fill="#8B949E" text-anchor="middle">🏆 XP + Leaderboard</text>
+
+  <rect x="644" y="450" width="140" height="48" rx="12" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+  <text x="714" y="479" font-family="Inter, Arial, sans-serif" font-size="14" fill="#8B949E" text-anchor="middle">🆓 Free Forever</text>
+
+  <!-- Right side - code snippet decoration -->
+  <rect x="820" y="80" width="300" height="400" rx="14" fill="#0D1117" stroke="#30363D" stroke-width="1" opacity="0.9"/>
+  <rect x="820" y="80" width="300" height="36" rx="14" fill="#161B22"/>
+  <rect x="820" y="102" width="300" height="14" fill="#161B22"/>
+  <circle cx="843" cy="98" r="6" fill="#FF5F56"/>
+  <circle cx="862" cy="98" r="6" fill="#FFBD2E"/>
+  <circle cx="881" cy="98" r="6" fill="#27C93F"/>
+  <text x="840" y="142" font-family="JetBrains Mono, monospace" font-size="12" fill="#8B949E">-- Find top earner per dept</text>
+  <text x="840" y="165" font-family="JetBrains Mono, monospace" font-size="12" fill="#79C0FF">WITH</text>
+  <text x="876" y="165" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3"> ranked AS (</text>
+  <text x="840" y="188" font-family="JetBrains Mono, monospace" font-size="12" fill="#79C0FF">  SELECT</text>
+  <text x="892" y="188" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3"> *,</text>
+  <text x="840" y="211" font-family="JetBrains Mono, monospace" font-size="12" fill="#D2A8FF">  ROW_NUMBER</text>
+  <text x="954" y="211" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3">() OVER</text>
+  <text x="840" y="234" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3">    (PARTITION BY</text>
+  <text x="958" y="234" font-family="JetBrains Mono, monospace" font-size="12" fill="#FFA657"> dept</text>
+  <text x="840" y="257" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3">    ORDER BY</text>
+  <text x="918" y="257" font-family="JetBrains Mono, monospace" font-size="12" fill="#FFA657"> salary</text>
+  <text x="963" y="257" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3"> DESC)</text>
+  <text x="840" y="280" font-family="JetBrains Mono, monospace" font-size="12" fill="#79C0FF">  AS</text>
+  <text x="864" y="280" font-family="JetBrains Mono, monospace" font-size="12" fill="#FFA657"> rn</text>
+  <text x="840" y="303" font-family="JetBrains Mono, monospace" font-size="12" fill="#79C0FF">FROM</text>
+  <text x="874" y="303" font-family="JetBrains Mono, monospace" font-size="12" fill="#FFA657"> employees</text>
+  <text x="840" y="326" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3">)</text>
+  <text x="840" y="349" font-family="JetBrains Mono, monospace" font-size="12" fill="#79C0FF">SELECT</text>
+  <text x="892" y="349" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3"> * FROM ranked</text>
+  <text x="840" y="372" font-family="JetBrains Mono, monospace" font-size="12" fill="#79C0FF">WHERE</text>
+  <text x="886" y="372" font-family="JetBrains Mono, monospace" font-size="12" fill="#FFA657"> rn</text>
+  <text x="904" y="372" font-family="JetBrains Mono, monospace" font-size="12" fill="#E6EDF3"> = 1;</text>
+
+  <!-- URL watermark -->
+  <text x="600" y="600" font-family="Inter, Arial, sans-serif" font-size="18" fill="#30363D" text-anchor="middle">sqlriyaz.vercel.app</text>
+</svg>

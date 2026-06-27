@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #00D4FF;
+  --color-accent: #0080FF;
+  --color-bg: #0A0E1A;
+  --color-card: #111827;
+  --color-border: #1E3A5F;
+  --color-text: #E2E8F0;
+  --color-muted: #64748B;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+
+/* Monaco editor overrides */
+.monaco-editor { border-radius: 0 !important; }
+.monaco-editor .overflow-guard { border-radius: 0 !important; }
+
+/* Selection */
+::selection { background: rgba(0, 212, 255, 0.2); }
+
+/* Focus */
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
