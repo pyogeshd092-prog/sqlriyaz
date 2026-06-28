@@ -36,28 +36,25 @@ const ProgressContext = createContext<ProgressContextType>({} as ProgressContext
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
   // Always start with DEFAULT (empty) — never read from localStorage on init
-  // This prevents one user seeing another user's data
   const [progress, setProgress] = useState<UserProgress>(DEFAULT_PROGRESS);
   const [newAchievements, setNewAchievements] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
-  // Ref to track current user ID inside closures without stale captures
+  // Ref tracks current userId inside closures without stale captures
   const currentUserIdRef = useRef<string | null>(null);
 
   // Load this user's progress from Supabase
   const loadFromSupabase = useCallback(async (userId: string) => {
     setProgressLoading(true);
     try {
-      // Try user-specific localStorage cache first (for fast load)
+      // Show cached data immediately for fast UX
       const cacheKey = `sqlace_progress_${userId}`;
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
-        try {
-          setProgress({ ...DEFAULT_PROGRESS, ...JSON.parse(cached) });
-        } catch { /* ignore bad cache */ }
+        try { setProgress({ ...DEFAULT_PROGRESS, ...JSON.parse(cached) }); } catch { /* ignore */ }
       }
 
-      // Always fetch fresh from Supabase to get authoritative data
+      // Always fetch fresh from Supabase (authoritative)
       const [profileRes, solvedRes, bookmarkRes] = await Promise.all([
         supabase.from('profiles').select('xp, level, streak, longest_streak, last_active').eq('id', userId).single(),
         supabase.from('user_solved_questions').select('question_id, xp_earned').eq('user_id', userId),
@@ -93,18 +90,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       };
 
       setProgress(userProgress);
-      // Cache per-user
       localStorage.setItem(cacheKey, JSON.stringify(userProgress));
     } catch (err) {
-      console.error('Failed to load progress from Supabase:', err);
+      console.error('[ProgressContext] Failed to load from Supabase:', err);
     } finally {
       setProgressLoading(false);
     }
   }, []);
 
-  // Listen to auth state changes — load/clear progress accordingly
+  // Listen to auth state — load or clear progress accordingly
   useEffect(() => {
-    // Check current session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         currentUserIdRef.current = session.user.id;
@@ -119,7 +114,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        // Use ref (not state) to avoid stale closure bug
+        // Use ref (not state) to avoid stale closure — state lags behind in callbacks
         if (session.user.id !== currentUserIdRef.current) {
           currentUserIdRef.current = session.user.id;
           setCurrentUserId(session.user.id);
@@ -137,18 +132,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save to user-specific localStorage cache whenever progress changes (only if logged in)
+  // Persist to user-specific localStorage cache on every progress change
   useEffect(() => {
     if (!currentUserId) return;
-    const cacheKey = `sqlace_progress_${currentUserId}`;
-    localStorage.setItem(cacheKey, JSON.stringify(progress));
+    localStorage.setItem(`sqlace_progress_${currentUserId}`, JSON.stringify(progress));
   }, [progress, currentUserId]);
 
-  // Sync profile stats to Supabase when progress changes
+  // Sync profile stats to Supabase (upsert so it creates row if missing)
   useEffect(() => {
     if (!currentUserId) return;
     const syncToCloud = async () => {
-      // Use upsert so it creates the row if it doesn't exist yet
       const { error } = await supabase.from('profiles').upsert({
         id: currentUserId,
         xp: progress.xp,
@@ -166,23 +159,18 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const updateStreak = useCallback((prog: UserProgress): UserProgress => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
     let newStreak = prog.streak;
     if (prog.lastActive === yesterday) {
       newStreak = prog.streak + 1;
     } else if (prog.lastActive !== today) {
       newStreak = 1;
     }
-
     return {
       ...prog,
       streak: newStreak,
       longestStreak: Math.max(newStreak, prog.longestStreak),
       lastActive: today,
-      dailySolves: {
-        ...prog.dailySolves,
-        [today]: (prog.dailySolves[today] || 0) + 1
-      }
+      dailySolves: { ...prog.dailySolves, [today]: (prog.dailySolves[today] || 0) + 1 }
     };
   }, []);
 
@@ -192,7 +180,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (prog.achievements.includes(ach.id)) return;
       const { condition } = ach;
       let unlocked = false;
-
       if (condition.startsWith('solved_count')) {
         const n = parseInt(condition.split('>=')[1]);
         unlocked = prog.solvedQuestions.length >= n;
@@ -226,7 +213,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       } else if (condition === 'fast_solve') {
         unlocked = timeTaken !== undefined && timeTaken < 120;
       }
-
       if (unlocked) earned.push(ach.id);
     });
     return earned;
@@ -237,21 +223,15 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (prev.solvedQuestions.includes(questionId)) return prev;
 
       const submission: Submission = {
-        questionId,
-        code,
-        status: 'correct',
-        timestamp: new Date().toISOString(),
-        timeTaken
+        questionId, code, status: 'correct',
+        timestamp: new Date().toISOString(), timeTaken
       };
 
       let updated: UserProgress = {
         ...prev,
         solvedQuestions: [...prev.solvedQuestions, questionId],
         xp: prev.xp + xpReward,
-        topicProgress: {
-          ...prev.topicProgress,
-          [category]: (prev.topicProgress[category] || 0) + 1
-        },
+        topicProgress: { ...prev.topicProgress, [category]: (prev.topicProgress[category] || 0) + 1 },
         submissions: [...prev.submissions, submission]
       };
 
@@ -263,18 +243,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           const ach = achievements.find(a => a.id === id);
           return sum + (ach?.xpReward || 0);
         }, 0);
-        updated = {
-          ...updated,
-          achievements: [...updated.achievements, ...newEarned],
-          xp: updated.xp + bonusXp
-        };
+        updated = { ...updated, achievements: [...updated.achievements, ...newEarned], xp: updated.xp + bonusXp };
         setNewAchievements(newEarned);
       }
 
       const levelInfo = getLevelTitle(updated.xp);
       updated.level = levelInfo.level;
 
-      // Save solved question to Supabase
+      // Persist to Supabase
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
         supabase.from('user_solved_questions').upsert({
@@ -296,7 +272,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         if (isCurrentlyBookmarked) {
           supabase.from('user_bookmarks').delete().match({ user_id: user.id, question_id: questionId });
         } else {
-          supabase.from('user_bookmarks').upsert({ user_id: user.id, question_id: questionId }, { onConflict: 'user_id,question_id' });
+          supabase.from('user_bookmarks').upsert(
+            { user_id: user.id, question_id: questionId },
+            { onConflict: 'user_id,question_id' }
+          );
         }
       });
       return {
