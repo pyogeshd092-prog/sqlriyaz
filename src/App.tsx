@@ -6,7 +6,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Layout/Navbar';
 import Footer from './components/Layout/Footer';
 
-// Lazy-load all pages for code splitting (reduces initial bundle ~60%)
 const Home = lazy(() => import('./pages/Home'));
 const Playground = lazy(() => import('./pages/Playground'));
 const Questions = lazy(() => import('./pages/Questions'));

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { UserProgress, Submission } from '../types';
 import { achievements, getLevelTitle } from '../data/achievements';
 import { questions } from '../data/questions';
@@ -29,32 +29,115 @@ interface ProgressContextType {
   resetProgress: () => void;
   newAchievements: string[];
   clearNewAchievements: () => void;
+  progressLoading: boolean;
 }
 
 const ProgressContext = createContext<ProgressContextType>({} as ProgressContextType);
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
-  const [progress, setProgress] = useState<UserProgress>(() => {
-    try {
-      const saved = localStorage.getItem('sqlace_progress');
-      return saved ? { ...DEFAULT_PROGRESS, ...JSON.parse(saved) } : DEFAULT_PROGRESS;
-    } catch {
-      return DEFAULT_PROGRESS;
-    }
-  });
-
+  // Always start with DEFAULT (empty) — never read from localStorage on init
+  // This prevents one user seeing another user's data
+  const [progress, setProgress] = useState<UserProgress>(DEFAULT_PROGRESS);
   const [newAchievements, setNewAchievements] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
 
-  // Save to localStorage always
-  useEffect(() => {
-    localStorage.setItem('sqlace_progress', JSON.stringify(progress));
-  }, [progress]);
+  // Load this user's progress from Supabase
+  const loadFromSupabase = useCallback(async (userId: string) => {
+    setProgressLoading(true);
+    try {
+      // Try user-specific localStorage cache first (for fast load)
+      const cacheKey = `sqlace_progress_${userId}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          setProgress({ ...DEFAULT_PROGRESS, ...JSON.parse(cached) });
+        } catch { /* ignore bad cache */ }
+      }
 
-  // Sync profile stats to Supabase when progress changes (if logged in)
+      // Always fetch fresh from Supabase to get authoritative data
+      const [profileRes, solvedRes, bookmarkRes] = await Promise.all([
+        supabase.from('profiles').select('xp, level, streak, longest_streak, last_active').eq('id', userId).single(),
+        supabase.from('user_solved_questions').select('question_id, xp_earned').eq('user_id', userId),
+        supabase.from('user_bookmarks').select('question_id').eq('user_id', userId),
+      ]);
+
+      const profile = profileRes.data;
+      const solvedIds = (solvedRes.data || []).map((r: { question_id: number }) => r.question_id);
+      const bookmarkIds = (bookmarkRes.data || []).map((r: { question_id: number }) => r.question_id);
+
+      // Rebuild topic progress from solved questions
+      const topicProgress: Record<string, number> = {};
+      solvedIds.forEach((id: number) => {
+        const q = questions.find(q => q.id === id);
+        if (q) topicProgress[q.category] = (topicProgress[q.category] || 0) + 1;
+      });
+
+      const userProgress: UserProgress = {
+        ...DEFAULT_PROGRESS,
+        xp: profile?.xp || 0,
+        level: profile?.level || 1,
+        streak: profile?.streak || 0,
+        longestStreak: profile?.longest_streak || 0,
+        lastActive: profile?.last_active || '',
+        solvedQuestions: solvedIds,
+        bookmarkedQuestions: bookmarkIds,
+        topicProgress,
+      };
+
+      setProgress(userProgress);
+      // Cache per-user
+      localStorage.setItem(cacheKey, JSON.stringify(userProgress));
+    } catch (err) {
+      console.error('Failed to load progress from Supabase:', err);
+    } finally {
+      setProgressLoading(false);
+    }
+  }, []);
+
+  // Listen to auth state changes — load/clear progress accordingly
   useEffect(() => {
+    // Check current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+        loadFromSupabase(session.user.id);
+      } else {
+        setProgress(DEFAULT_PROGRESS);
+        setCurrentUserId(null);
+        setProgressLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        if (session.user.id !== currentUserId) {
+          // Different user logged in — load their data
+          setCurrentUserId(session.user.id);
+          await loadFromSupabase(session.user.id);
+        }
+      } else {
+        // Logged out — wipe progress immediately
+        setProgress(DEFAULT_PROGRESS);
+        setCurrentUserId(null);
+        setProgressLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save to user-specific localStorage cache whenever progress changes (only if logged in)
+  useEffect(() => {
+    if (!currentUserId) return;
+    const cacheKey = `sqlace_progress_${currentUserId}`;
+    localStorage.setItem(cacheKey, JSON.stringify(progress));
+  }, [progress, currentUserId]);
+
+  // Sync profile stats to Supabase when progress changes
+  useEffect(() => {
+    if (!currentUserId) return;
     const syncToCloud = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       await supabase.from('profiles').update({
         xp: progress.xp,
         level: progress.level,
@@ -62,10 +145,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         longest_streak: progress.longestStreak,
         questions_solved: progress.solvedQuestions.length,
         last_active: progress.lastActive || new Date().toISOString().split('T')[0],
-      }).eq('id', user.id);
+      }).eq('id', currentUserId);
     };
     syncToCloud();
-  }, [progress.xp, progress.streak, progress.solvedQuestions.length]);
+  }, [progress.xp, progress.streak, progress.solvedQuestions.length, currentUserId]);
 
   const updateStreak = useCallback((prog: UserProgress): UserProgress => {
     const today = new Date().toISOString().split('T')[0];
@@ -195,7 +278,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const toggleBookmark = useCallback((questionId: number) => {
     setProgress(prev => {
       const isCurrentlyBookmarked = prev.bookmarkedQuestions.includes(questionId);
-      // Sync bookmark to Supabase
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
         if (isCurrentlyBookmarked) {
@@ -216,11 +298,17 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const isSolved = useCallback((id: number) => progress.solvedQuestions.includes(id), [progress.solvedQuestions]);
   const isBookmarked = useCallback((id: number) => progress.bookmarkedQuestions.includes(id), [progress.bookmarkedQuestions]);
   const getLevelInfo = useCallback(() => getLevelTitle(progress.xp), [progress.xp]);
-  const resetProgress = useCallback(() => { setProgress(DEFAULT_PROGRESS); localStorage.removeItem('sqlace_progress'); }, []);
+  const resetProgress = useCallback(() => {
+    setProgress(DEFAULT_PROGRESS);
+    if (currentUserId) localStorage.removeItem(`sqlace_progress_${currentUserId}`);
+  }, [currentUserId]);
   const clearNewAchievements = useCallback(() => setNewAchievements([]), []);
 
   return (
-    <ProgressContext.Provider value={{ progress, markSolved, toggleBookmark, isSolved, isBookmarked, getLevelInfo, resetProgress, newAchievements, clearNewAchievements }}>
+    <ProgressContext.Provider value={{
+      progress, markSolved, toggleBookmark, isSolved, isBookmarked,
+      getLevelInfo, resetProgress, newAchievements, clearNewAchievements, progressLoading
+    }}>
       {children}
     </ProgressContext.Provider>
   );

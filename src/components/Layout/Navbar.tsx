@@ -37,7 +37,6 @@ export default function Navbar() {
     <nav style={{ backgroundColor: config.card, borderBottomColor: config.border }}
          className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 group">
           <div style={{ background: `linear-gradient(135deg, ${config.primary}, ${config.accent})` }}
                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg">
@@ -48,16 +47,12 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Nav */}
         <div className="hidden lg:flex items-center gap-1">
           {navLinks.map(({ path, label, icon: Icon }) => {
             const active = location.pathname === path;
             return (
               <Link key={path} to={path}
-                style={{
-                  color: active ? config.primary : config.muted,
-                  backgroundColor: active ? `${config.primary}15` : 'transparent'
-                }}
+                style={{ color: active ? config.primary : config.muted, backgroundColor: active ? `${config.primary}15` : 'transparent' }}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90">
                 <Icon className="w-4 h-4" />
                 {label}
@@ -66,33 +61,29 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Right side */}
         <div className="flex items-center gap-3">
           <ThemeSelector />
 
-          {/* XP Badge */}
-          <div style={{ backgroundColor: `${config.primary}15`, borderColor: `${config.primary}40`, color: config.primary }}
-               className="hidden sm:flex items-center gap-1.5 border rounded-full px-3 py-1 text-sm font-semibold">
-            <Zap className="w-3.5 h-3.5" />
-            <span>{progress.xp} XP</span>
-            <span style={{ color: config.muted }} className="text-xs">· Lv.{levelInfo.level}</span>
-          </div>
-
-          {/* Streak */}
-          {progress.streak > 0 && (
-            <div className="hidden sm:flex items-center gap-1 text-orange-400 text-sm font-semibold">
-              🔥 {progress.streak}
+          {user && (
+            <div style={{ backgroundColor: `${config.primary}15`, borderColor: `${config.primary}40`, color: config.primary }}
+                 className="hidden sm:flex items-center gap-1.5 border rounded-full px-3 py-1 text-sm font-semibold">
+              <Zap className="w-3.5 h-3.5" />
+              <span>{progress.xp} XP</span>
+              <span style={{ color: config.muted }} className="text-xs">Lv.{levelInfo.level}</span>
             </div>
           )}
 
-          {/* Auth */}
+          {user && progress.streak > 0 && (
+            <div className="hidden sm:flex items-center gap-1 text-orange-400 text-sm font-semibold">
+              {progress.streak}
+            </div>
+          )}
+
           {user ? (
             <div className="relative">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
+              <button onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all hover:opacity-80"
-                style={{ borderColor: config.border, background: config.bg }}
-              >
+                style={{ borderColor: config.border, background: config.bg }}>
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
                 ) : (
@@ -105,7 +96,6 @@ export default function Navbar() {
                   {profile?.username || profile?.full_name || 'You'}
                 </span>
               </button>
-
               {userMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border shadow-xl overflow-hidden z-50"
                   style={{ background: config.card, borderColor: config.border }}>
@@ -129,7 +119,6 @@ export default function Navbar() {
             </Link>
           )}
 
-          {/* Mobile menu toggle */}
           <button onClick={() => setMobileOpen(!mobileOpen)}
             className="lg:hidden p-2 rounded-lg"
             style={{ color: config.muted }}>
@@ -138,19 +127,14 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileOpen && (
         <div style={{ backgroundColor: config.card, borderColor: config.border }}
              className="lg:hidden border-t px-4 py-3 space-y-1">
           {navLinks.map(({ path, label, icon: Icon }) => {
             const active = location.pathname === path;
             return (
-              <Link key={path} to={path}
-                onClick={() => setMobileOpen(false)}
-                style={{
-                  color: active ? config.primary : config.muted,
-                  backgroundColor: active ? `${config.primary}15` : 'transparent'
-                }}
+              <Link key={path} to={path} onClick={() => setMobileOpen(false)}
+                style={{ color: active ? config.primary : config.muted, backgroundColor: active ? `${config.primary}15` : 'transparent' }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all">
                 <Icon className="w-4 h-4" />
                 {label}
@@ -166,7 +150,7 @@ export default function Navbar() {
             <Link to="/login" onClick={() => setMobileOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium"
               style={{ color: config.primary }}>
-              <LogIn className="w-4 h-4" /> Login / Sign Up
+              <LogIn className="w-4 h-4" /> Login
             </Link>
           )}
         </div>
