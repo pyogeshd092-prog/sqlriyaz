@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import type { UserProgress, Submission } from '../types';
 import { achievements, getLevelTitle } from '../data/achievements';
 import { questions } from '../data/questions';
@@ -41,6 +41,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [newAchievements, setNewAchievements] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
+  // Ref to track current user ID inside closures without stale captures
+  const currentUserIdRef = useRef<string | null>(null);
 
   // Load this user's progress from Supabase
   const loadFromSupabase = useCallback(async (userId: string) => {
@@ -62,9 +64,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         supabase.from('user_bookmarks').select('question_id').eq('user_id', userId),
       ]);
 
+      if (profileRes.error) console.error('[ProgressContext] profiles fetch error:', profileRes.error);
+      if (solvedRes.error) console.error('[ProgressContext] user_solved_questions fetch error:', solvedRes.error);
+      if (bookmarkRes.error) console.error('[ProgressContext] user_bookmarks fetch error:', bookmarkRes.error);
+
       const profile = profileRes.data;
       const solvedIds = (solvedRes.data || []).map((r: { question_id: number }) => r.question_id);
       const bookmarkIds = (bookmarkRes.data || []).map((r: { question_id: number }) => r.question_id);
+      console.log('[ProgressContext] Loaded from Supabase:', { profile, solvedIds, bookmarkIds });
 
       // Rebuild topic progress from solved questions
       const topicProgress: Record<string, number> = {};
@@ -100,6 +107,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     // Check current session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        currentUserIdRef.current = session.user.id;
         setCurrentUserId(session.user.id);
         loadFromSupabase(session.user.id);
       } else {
@@ -111,13 +119,15 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        if (session.user.id !== currentUserId) {
-          // Different user logged in — load their data
+        // Use ref (not state) to avoid stale closure bug
+        if (session.user.id !== currentUserIdRef.current) {
+          currentUserIdRef.current = session.user.id;
           setCurrentUserId(session.user.id);
           await loadFromSupabase(session.user.id);
         }
       } else {
         // Logged out — wipe progress immediately
+        currentUserIdRef.current = null;
         setProgress(DEFAULT_PROGRESS);
         setCurrentUserId(null);
         setProgressLoading(false);
@@ -138,14 +148,17 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!currentUserId) return;
     const syncToCloud = async () => {
-      await supabase.from('profiles').update({
+      // Use upsert so it creates the row if it doesn't exist yet
+      const { error } = await supabase.from('profiles').upsert({
+        id: currentUserId,
         xp: progress.xp,
         level: progress.level,
         streak: progress.streak,
         longest_streak: progress.longestStreak,
         questions_solved: progress.solvedQuestions.length,
         last_active: progress.lastActive || new Date().toISOString().split('T')[0],
-      }).eq('id', currentUserId);
+      }, { onConflict: 'id' });
+      if (error) console.error('[ProgressContext] syncToCloud error:', error);
     };
     syncToCloud();
   }, [progress.xp, progress.streak, progress.solvedQuestions.length, currentUserId]);
