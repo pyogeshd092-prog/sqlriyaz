@@ -1,7 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+
+const MAX_ATTEMPTS = 5
+const LOCKOUT_SECONDS = 30
+const STORAGE_KEY = 'sqlriyaz_login_attempts'
+
+interface AttemptData { count: number; lockedUntil: number }
+
+function getAttempts(): AttemptData {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : { count: 0, lockedUntil: 0 }
+  } catch { return { count: 0, lockedUntil: 0 } }
+}
+
+function saveAttempts(data: AttemptData) {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+function clearAttempts() {
+  sessionStorage.removeItem(STORAGE_KEY)
+}
 
 export default function Login() {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth()
@@ -15,32 +36,96 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [lockoutRemaining, setLockoutRemaining] = useState(0)
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    const data = getAttempts()
+    const remaining = Math.ceil((data.lockedUntil - Date.now()) / 1000)
+    if (remaining > 0) setLockoutRemaining(remaining)
+
+    const timer = setInterval(() => {
+      const d = getAttempts()
+      const rem = Math.ceil((d.lockedUntil - Date.now()) / 1000)
+      if (rem <= 0) {
+        setLockoutRemaining(0)
+        clearInterval(timer)
+      } else {
+        setLockoutRemaining(rem)
+      }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  function friendlyError(msg: string): string {
+    if (!msg) return 'Something went wrong. Please try again.'
+    const m = msg.toLowerCase()
+    if (m.includes('invalid login') || m.includes('invalid credentials') || m.includes('wrong password'))
+      return 'Incorrect email or password.'
+    if (m.includes('email not confirmed'))
+      return 'Please verify your email first — check your inbox.'
+    if (m.includes('user already registered') || m.includes('already been registered'))
+      return 'This email is already registered. Try logging in instead.'
+    if (m.includes('password should be at least'))
+      return 'Password must be at least 6 characters.'
+    if (m.includes('unable to validate email'))
+      return 'Please enter a valid email address.'
+    if (m.includes('too many requests') || m.includes('rate limit'))
+      return 'Too many attempts. Please wait a moment and try again.'
+    return msg
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setSuccessMsg('')
+
+    // Check lockout
+    const attempts = getAttempts()
+    if (Date.now() < attempts.lockedUntil) {
+      const rem = Math.ceil((attempts.lockedUntil - Date.now()) / 1000)
+      setError(`Too many failed attempts. Try again in ${rem}s.`)
+      return
+    }
+
     setLoading(true)
 
     if (mode === 'login') {
       const err = await signInWithEmail(email, password)
-      if (err) { setError(err); setLoading(false); return }
+      if (err) {
+        // Track failed attempts
+        const updated = { ...attempts, count: attempts.count + 1 }
+        if (updated.count >= MAX_ATTEMPTS) {
+          updated.lockedUntil = Date.now() + LOCKOUT_SECONDS * 1000
+          updated.count = 0
+          setLockoutRemaining(LOCKOUT_SECONDS)
+        }
+        saveAttempts(updated)
+        setError(friendlyError(err))
+        setLoading(false)
+        return
+      }
+      clearAttempts()
       navigate('/')
     } else {
       if (!username.trim()) { setError('Username is required'); setLoading(false); return }
+      if (username.trim().length < 3) { setError('Username must be at least 3 characters'); setLoading(false); return }
       const err = await signUpWithEmail(email, password, username)
-      if (err) { setError(err); setLoading(false); return }
+      if (err) { setError(friendlyError(err)); setLoading(false); return }
       // Try auto-login after signup (works when email confirmation is disabled)
       const loginErr = await signInWithEmail(email, password)
       if (!loginErr) {
+        clearAttempts()
         navigate('/')
         return
       }
-      setSuccessMsg('Account created! Please log in.')
+      setSuccessMsg('Account created! Check your email to verify, then log in.')
       setMode('login')
     }
     setLoading(false)
   }
+
+  const isLocked = lockoutRemaining > 0
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: config.bg }}>
@@ -48,7 +133,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="text-3xl font-black" style={{ color: config.primary }}>
-            SQL<span style={{ color: config.text }}>Ace</span>
+            SQL<span style={{ color: config.text }}>Riyaz</span>
           </Link>
           <p className="mt-2" style={{ color: config.muted }}>Master SQL for Your Dream Job</p>
         </div>
@@ -75,7 +160,8 @@ export default function Login() {
           {/* Google */}
           <button
             onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border mb-4 font-medium transition-opacity hover:opacity-80"
+            disabled={isLocked}
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border mb-4 font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
             style={{ borderColor: config.border, color: config.text, background: config.bg }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -93,6 +179,13 @@ export default function Login() {
             <div className="flex-1 h-px" style={{ background: config.border }} />
           </div>
 
+          {/* Lockout banner */}
+          {isLocked && (
+            <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium text-orange-400 bg-orange-400/10 border border-orange-400/20">
+              🔒 Too many failed attempts. Try again in {lockoutRemaining}s.
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
@@ -104,7 +197,8 @@ export default function Login() {
                   onChange={e => setUsername(e.target.value)}
                   placeholder="sqlmaster"
                   required
-                  className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2"
+                  disabled={isLocked}
+                  className="w-full px-4 py-3 rounded-xl border outline-none transition-all focus:ring-2 disabled:opacity-50"
                   style={{
                     background: config.bg, borderColor: config.border,
                     color: config.text, '--tw-ring-color': config.primary
@@ -120,7 +214,8 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full px-4 py-3 rounded-xl border outline-none"
+                disabled={isLocked}
+                className="w-full px-4 py-3 rounded-xl border outline-none disabled:opacity-50"
                 style={{ background: config.bg, borderColor: config.border, color: config.text }}
               />
             </div>
@@ -133,12 +228,13 @@ export default function Login() {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="w-full px-4 py-3 rounded-xl border outline-none"
+                disabled={isLocked}
+                className="w-full px-4 py-3 rounded-xl border outline-none disabled:opacity-50"
                 style={{ background: config.bg, borderColor: config.border, color: config.text }}
               />
             </div>
 
-            {error && (
+            {error && !isLocked && (
               <p className="text-sm text-red-400 bg-red-400/10 px-4 py-2 rounded-lg">{error}</p>
             )}
             {successMsg && (
@@ -147,11 +243,11 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-xl font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+              disabled={loading || isLocked}
+              className="w-full py-3 rounded-xl font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: config.primary }}
             >
-              {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : 'Create Account'}
+              {loading ? 'Please wait...' : isLocked ? `Locked (${lockoutRemaining}s)` : mode === 'login' ? 'Log In' : 'Create Account'}
             </button>
           </form>
         </div>

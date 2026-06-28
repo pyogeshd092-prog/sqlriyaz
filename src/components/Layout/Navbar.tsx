@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Database, Code2, BookOpen, Target, LayoutDashboard, Menu, X, Map, Zap, Trophy, LogOut, LogIn, User } from 'lucide-react';
+import { Database, Code2, BookOpen, Target, LayoutDashboard, Menu, X, Map, Zap, Trophy, LogOut, LogIn, User, MessageSquare } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useProgress } from '../../contexts/ProgressContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,6 +14,7 @@ const navLinks = [
   { path: '/roles', label: 'Job Roles', icon: Target },
   { path: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/feedback', label: 'Feedback', icon: MessageSquare },
 ];
 
 export default function Navbar() {
